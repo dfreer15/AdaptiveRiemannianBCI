@@ -1,6 +1,6 @@
 # AdaptiveRiemannianBCI
 
-Hello! You should be able to directly run the adaptive_bci_func.py file to see how the adaptive BCI works.
+Hello! After downloading, you should be able to directly run the adaptive_bci_func.py file to see how the adaptive BCI works.
 
 If you use any of this code, please cite my paper:
 
