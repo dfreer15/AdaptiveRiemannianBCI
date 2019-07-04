@@ -1,6 +1,6 @@
 # import os.path
 
-import eeg_io_pp
+# import eeg_io_pp
 import eeg_io_pp_2
 import pyriemann
 import numpy as np
@@ -11,7 +11,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.metrics import confusion_matrix
 from torch import optim
 
-import Deep_Func
+# import Deep_Func
 import adaptive_bci_func as ABF
 
 import matplotlib.pyplot as plt
