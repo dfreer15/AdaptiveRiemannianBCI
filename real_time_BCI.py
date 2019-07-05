@@ -109,10 +109,10 @@ def get_data():
 
         data_train = eeg_io_pp.norm_dataset(data_train)
     else:
-        data_dir = '/homes/df1215/Downloads/eeg_test_data/'
-        # data_dir = '/data/eeg_test_data/'
-        data = np.genfromtxt(data_dir + 'Fani_0/fd_NFB_001_data.csv', delimiter=',')
-        labels = np.genfromtxt(data_dir + 'Fani_0/fd_NFB_001_markers.csv', delimiter=',')
+        # data_dir = '/homes/df1215/Downloads/eeg_test_data/'
+        data_dir = '/data/EEG_Data/adaptive_eeg_test_data/'
+        data = np.genfromtxt(data_dir + 'Daniel_0/df_NFB_001_data.csv', delimiter=',')
+        labels = np.genfromtxt(data_dir + 'Daniel_0/df_NFB_001_markers.csv', delimiter=',')
 
         # data = np.genfromtxt(data_dir + 'Daniel_0/daniel_1211_001_data.csv', delimiter=',')
         # labels = np.genfromtxt(data_dir + 'Daniel_0/daniel_1211_001_markers.csv', delimiter=',')
