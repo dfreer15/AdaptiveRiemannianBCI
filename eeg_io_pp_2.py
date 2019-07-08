@@ -246,30 +246,35 @@ def label_data_lsl(data, label_in, n_channels=16, classes=4):
             except IndexError:
                 continue
 
-        if classes == 5:
-            for i in range(len(data)):
-                data_out[i] = data[i, 1:n_channels + 1]
-                # print(label_in[j, 0], data[i, 0])
-                if label_in[j, 0] + 500 < data[i, 0] < label_in[j, 0] + 2500:
-                    if label_in[j, 1] == 300:  # means left
-                        label_out[i] = 1
-                    elif label_in[j, 1] == 200:  # means right
-                        label_out[i] = 2
-                    else:
-                        label_out[i] = 0
-                elif data[i, 0] > label_in[j, 0] + 2500:
-                    if label_in[j, 1] == 300:  # means left
-                        label_out[i] = 1
-                    elif label_in[j, 1] == 200:  # means right
-                        label_out[i] = 2
-                    else:
-                        label_out[i] = 0
-                    j = j + 1
+    elif classes == 5:
+        for i in range(len(data)):
+            data_out[i] = data[i, 1:n_channels + 1]
+            # print(label_in[j, 0], data[i, 0])
+            if label_in[j, 0] + 500 < data[i, 0] < label_in[j, 0] + 2500:
+                if label_in[j, 1] == 300:  # means left
+                    label_out[i] = 1
+                elif label_in[j, 1] == 200:  # means right
+                    label_out[i] = 2
+                elif label_in[j, 1] == 400:  # means up
+                    label_out[i] = 3
+                elif label_in[j, 1] == 500:  # means down
+                    label_out[i] = 4
                 else:
                     label_out[i] = 0
-
-        data_out = data_out[:i]
-        label_out = label_out[:i]
+            elif data[i, 0] > label_in[j, 0] + 2500:
+                if label_in[j, 1] == 300:  # means left
+                    label_out[i] = 1
+                elif label_in[j, 1] == 200:  # means right
+                    label_out[i] = 2
+                elif label_in[j, 1] == 400:  # means up
+                    label_out[i] = 3
+                elif label_in[j, 1] == 500:  # means down
+                    label_out[i] = 4
+                else:
+                    label_out[i] = 0
+                j = j + 1
+            else:
+                label_out[i] = 0
 
     return data_out, label_out
 
