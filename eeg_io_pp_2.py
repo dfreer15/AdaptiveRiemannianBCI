@@ -245,6 +245,9 @@ def label_data_lsl(data, label_in, n_channels=16, classes=4):
                     j += 1
             except IndexError:
                 continue
+        
+        data_out = data_out[:i]
+        label_out = label_out[:i]
 
     elif classes == 5:
         for i in range(len(data)):
