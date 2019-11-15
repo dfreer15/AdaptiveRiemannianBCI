@@ -11,53 +11,51 @@ from pyriemann.utils.distance import distance
 import pandas
 
 def predict_distances_own(covtest, covmeans):
-    """Helper to predict the distance. equivalent to transform."""
+    # # # Predicts the Riemannian distances between two covariance matrices # # #
+    # Returns: the Riemannian distance between the inputs
+    
     Nc = len(covmeans)
-
-    # if self.n_jobs == 1:
-    # print(covtest.shape, covmeans.shape)
     dist = [distance(covtest, covmeans[m], 'riemann')
             for m in range(Nc)]
-    # else:
-    #     dist = Parallel(n_jobs=self.n_jobs)(delayed(distance)(
-    #         covtest, self.covmeans_[m], self.metric_dist)
-    #                                         for m in range(Nc))
-
     dist = np.concatenate(dist, axis=1)
+    
     return dist
 
 
 def predict_own(covtest, covmeans):
-    """get the predictions.
-
-    Parameters
-    ----------
-    X : ndarray, shape (n_trials, n_channels, n_channels)
-        ndarray of SPD matrices.
-
-    Returns
-    -------
-    pred : ndarray of int, shape (n_trials, 1)
-        the prediction for each trials according to the closest centroid.
-    """
-    print('covshapes: ', covtest.shape, covmeans.shape)
+    
+    # # # Predicts the EEG class based on the Riemannian Distance
+    # Returns: the prediction, along with a certainty value
+    
     dist = predict_distances_own(covtest, covmeans)
-    print('Dist Shape: ', dist.shape)
     cert = (dist.mean(axis=1) - dist.min(axis=1)) * 4
     return dist.argmin(axis=1), cert
 
 
+def training_data_cov_means(X, y, num_classes=4):
+
+    # # # Finds the mean covariance matrices for each class in the training data
+    # Returns: The mean covariance matrices
+    
+    mean_cov_i = np.zeros((num_classes, X.shape[1], X.shape[2]))
+    num_in_class_i = np.zeros(num_classes)
+    for l in range(num_classes):
+        sample_weight = np.ones(X[y == l].shape[0])
+        mean_cov_i[l] = mean_covariance(X[y == l], metric='riemann',
+                                        sample_weight=sample_weight)
+        num_in_class_i[l] = X[y == l].shape[0]
+
+    return mean_cov_i, num_in_class_i
+
 
 def full_calc_mean_cov(cov_train_i, label_train_i, num_classes, mean_cov_i):
+    # # # Recalculates the new mean covariance matrix iteratively, considering
+    # # # the actual mean of each matrix
+    
     tic2 = time.clock()
-
-    # print(cov_train_i.shape)
-    # print(label_train_i.shape)
-
     mean_cov_n = np.zeros((num_classes, cov_train_i.shape[1], cov_train_i.shape[2]))
 
     for l in range(num_classes):
-        # print(l)
         try:
             mean_cov_n[l] = mean_covariance(cov_train_i[label_train_i == l], metric='riemann',
                                             sample_weight=None)
@@ -71,43 +69,26 @@ def full_calc_mean_cov(cov_train_i, label_train_i, num_classes, mean_cov_i):
     return mean_cov_n, time_out
 
 
-def training_data_cov_means(X, y, num_classes=4):
-
-    mean_cov_i = np.zeros((num_classes, X.shape[1], X.shape[2]))
-    num_in_class_i = np.zeros(num_classes)
-    print('num_classes: ', num_classes)
-    for l in range(num_classes):
-        sample_weight = np.ones(X[y == l].shape[0])
-        mean_cov_i[l] = mean_covariance(X[y == l], metric='riemann',
-                                        sample_weight=sample_weight)
-        num_in_class_i[l] = X[y == l].shape[0]
-
-    return mean_cov_i, num_in_class_i
-
-
 def alter_mean_cov(mean_cov_in, num_in_class_in, X_val, label_v):
+    # # # Changes all mean covariance matrices by weighting the previous mean
+    # # # by a constant amount, then considering all new data individually.
+    # Returns: the new mean covariance matrix, the number of data assigned to each class, how much time the operation took
+    
     label_val_j = label_v
-
-    # print(mean_cov_in)
 
     mean_cov_n = mean_cov_in
     mean_cov_out = mean_cov_in
-    # num_in_class_n = num_in_class_in
     num_in_class_out = num_in_class_in
     tic = time.clock()
     for l in range(num_classes):
         if X_val[label_val_j == l].shape[0] > 0:
             sample_weight_n = np.ones(X_val[label_val_j == l].shape[0] + 1)
-            # sample_weight_n[0] = num_in_class_in[l]
             sample_weight_n[0] = 10
             sample_weight_n = sample_weight_n/num_in_class_in[l]
             X_val_n = np.vstack(
                 [mean_cov_n[l].reshape(1, num_channels, num_channels), X_val[label_val_j == l]])
             mean_cov_n[l] = mean_riemann(X_val_n,
                                             sample_weight=sample_weight_n, init=mean_cov_n[l])
-            # num_in_class_n[l] = X_val[label_val_j == l].shape[0]
-            # num_in_class_out[l] = num_in_class_out[l] + num_in_class_n[l]
-            # mean_cov_out[l] = mean_cov_out[l] + (mean_cov_in[l] - mean_cov_n[l]) / num_in_class_out[l]
             mean_cov_out[l] = mean_cov_n[l]
 
     time_out = time.clock()-tic
@@ -117,21 +98,22 @@ def alter_mean_cov(mean_cov_in, num_in_class_in, X_val, label_v):
 
 
 def alter_mean_cov_2(mean_cov_in, num_in_class_in, X_val, label_v):
+    # # # Changes a mean covariance matrix by weighting the previous mean
+    # # # as much as the amount of previous datapoints seen, then considering
+    # # # all new data individually
+    # Returns: the new mean covariance matrix, the number of data assigned to each class, how much time the operation took
+    
     label_val_j = label_v
-
-    # print(mean_cov_in)
 
     mean_cov_n = mean_cov_in
     mean_cov_out = mean_cov_in
     num_in_class_n = np.zeros((num_in_class_in.shape))
     num_in_class_out = num_in_class_in
 
-    # print('OLD OlD num in classes: ', num_in_class_out)
     tic = time.clock()
     for l in range(num_classes):
         if X_val[label_val_j == l].shape[0] > 0:
             sample_weight_n = np.ones(X_val[label_val_j == l].shape[0] + 1)
-            # sample_weight_n[0] = num_in_class_in[l]
             sample_weight_n[0] = num_in_class_in[l]
             sample_weight_n = sample_weight_n/num_in_class_in[l]
             X_val_n = np.vstack(
@@ -139,11 +121,7 @@ def alter_mean_cov_2(mean_cov_in, num_in_class_in, X_val, label_v):
             mean_cov_n[l] = mean_riemann(X_val_n,
                                             sample_weight=sample_weight_n, init=mean_cov_n[l])
             num_in_class_n[l] = X_val[label_val_j == l].shape[0]
-            # print('num in class N: ', l, num_in_class_n[l])
-            # print('OLD num in class N: ', l, num_in_class_out[l])
             num_in_class_out[l] = num_in_class_out[l] + num_in_class_n[l]
-            # print('NEW num in class N: ', l, num_in_class_out[l])
-            # mean_cov_out[l] = mean_cov_out[l] + (mean_cov_in[l] - mean_cov_n[l]) / num_in_class_out[l]
             mean_cov_out[l] = mean_cov_n[l]
 
     time_out = time.clock()-tic
@@ -153,6 +131,9 @@ def alter_mean_cov_2(mean_cov_in, num_in_class_in, X_val, label_v):
 
 
 def get_data():
+    # # # Gets and preprocesses training and validation data from a saved file
+    # Returns training and validation data and labels
+    
     global num_channels, num_classes
     data_type = 'gtec'
 
@@ -164,9 +145,6 @@ def get_data():
         single_session = True
 
         data_dir = '/data/EEG_Data/adaptive_eeg_test_data/'
-        # data = np.genfromtxt(data_dir + 'Daniel_0/daniel_1211_001_data.csv', delimiter=',')
-        # labels = np.genfromtxt(data_dir + 'Daniel_0/daniel_1211_001_markers.csv', delimiter=',')
-
         data_train_i = np.genfromtxt(data_dir + 'Daniel_0/df_FB_001_data.csv', delimiter=',')
         labels_train_i = np.genfromtxt(data_dir + 'Daniel_0/df_FB_001_markers.csv', delimiter=',')
 
@@ -205,8 +183,6 @@ def get_data():
         train_file = 'A' + format(subject_num, '02d') + 'T.gdf'
         test_file = 'A' + format(subject_num, '02d') + 'E.gdf'
         data_file = dataset + '_sub' + str(subject_num)
-        # model_file = data_folder_i + 'models/' + data_file
-        # data_folder = data_folder_i + 'bci_comp_data/'
 
         sig, time, events = eeg_io_pp_2.get_data_2a(dataset_dir + train_file, num_classes)
         data, labels = eeg_io_pp_2.label_data_2a_val(sig, time, events, freq, remove_rest=True)
@@ -219,9 +195,9 @@ def get_data():
 
 
 def cov2corr( A ):
-    """
-    covariance matrix to correlation matrix.
-    """
+    # # # Covariance matrix to correlation matrix
+    # Returns: Correlation matrix
+    
     d = np.sqrt(A.diagonal())
     A = ((A.T/d).T)/d
     #A[ np.diag_indices(A.shape[0]) ] = np.ones( A.shape[0] )
@@ -265,10 +241,9 @@ def select_channels(data, label):
 
 
 def run_prog():
+    # # # Runs the whole program
+    
     global num_channels, num_classes
-
-    # num_channels = 32
-    # num_classes = 4
 
     data_train, data_val, label_train, label_val = get_data()
 
@@ -428,8 +403,6 @@ def run_prog():
 
     final_output_data = np.vstack((acc_plt_clf, acc_plt_fc, time_plt_fc, acc_plt_med, time_plt_med, acc_plt_fast, time_plt_fast))
     final_out = np.transpose(final_output_data)
-    print(final_out.shape)
-    # np.savetxt('df_FB_med_FGDA_20training.csv', final_out, delimiter=',')
 
 
 if __name__ == '__main__':
