@@ -21,6 +21,8 @@ from pylsl import StreamOutlet, StreamInfo
 import time
 
 def get_clf():
+    # # # Defines the classifier that will be used
+    # Returns: the classifier, and the optimiser
     if clf_method == "Riemann":
         fgda = pyriemann.tangentspace.FGDA()
         mdm = pyriemann.classification.MDM()
@@ -37,8 +39,10 @@ def get_clf():
 
 
 def transform_fit(clf, opt, train_data, train_labels):
+    # # # Fits the predefined classifier to the training data
+    # Returns: the trained model
+    
     np.set_printoptions(precision=3)
-    # print(train_data[0,0,:])
     if clf_method == "Riemann":
         # train_data = train_data + 1e-12
         cov_train = pyriemann.estimation.Covariances().fit_transform(np.transpose(train_data, axes=[0, 2, 1]))
@@ -62,11 +66,11 @@ def transform_fit(clf, opt, train_data, train_labels):
 
 
 def predict(clf, val_data, labels, clf_method = "Riemann"):
+    # # # Makes predictions based on the trained classifier
+    # Returns the predicted value(s) and the certainty(s)
+    
     if clf_method == "Riemann":
-        # print(val_data.shape)
         cov_val = pyriemann.estimation.Covariances().fit_transform(np.transpose(val_data, axes=[0, 2, 1]))
-        # print('Covariance Matrix Values: ')
-        # print(cov_val)
         pred_val = clf.predict(cov_val)
         return pred_val, 1
     elif clf_method == "Braindecode":
@@ -83,6 +87,8 @@ def predict(clf, val_data, labels, clf_method = "Riemann"):
 
 
 def get_data():
+    # # # Gets the training and validation data
+    # Returns: Traning and validation data and labels
 
     global freq, dataset_dir
 
@@ -114,9 +120,6 @@ def get_data():
         data = np.genfromtxt(data_dir + 'Daniel_0/df_NFB_001_data.csv', delimiter=',')
         labels = np.genfromtxt(data_dir + 'Daniel_0/df_NFB_001_markers.csv', delimiter=',')
 
-        # data = np.genfromtxt(data_dir + 'Daniel_0/daniel_1211_001_data.csv', delimiter=',')
-        # labels = np.genfromtxt(data_dir + 'Daniel_0/daniel_1211_001_markers.csv', delimiter=',')
-
         data = data[1:len(data)]
         print('data shape: ', data.shape)
         labels = labels[1:len(labels)]
@@ -129,7 +132,9 @@ def get_data():
 
 
 def get_test_data():
-
+    # # # Gets prerecorded test data
+    # Returns test data
+    
     global data_test
     if dataset == "bci_comp":
         # data_test, label_test = eeg_io_pp.get_data_2a(dataset_dir + test_file, n_classes, remove_rest=False,
@@ -149,6 +154,8 @@ def get_test_data():
 
 
 def init_globals(expInfo):
+    # # # Initializes global variables
+    
     global dataset, train_data_folder, train_file, model_file
     global dataset_dir, train_file, test_file
     global remove_rest_val, reuse_data, mult_data, noise_data, neg_data, da_mod
@@ -207,6 +214,9 @@ def init_globals(expInfo):
 
 
 def train_network(exp_info):
+    # # # Trains the network or classifier on prerecorded training data
+    # Returns trained classifier
+    
     init_globals(exp_info)
 
     # model_file = data_folder + 'models/' + data_file + '_' + str(epochs) + 'epoch_model'
@@ -214,7 +224,7 @@ def train_network(exp_info):
     if clf_method == "LSTM":
         try:
             clf = Deep_Func.load_model(model_file, in_chans=num_channels, input_time_length=buffer_size)
-        # except FileNotFoundError:
+        # except FileNotFoundError:  # Python 2
         except EnvironmentError:
             data_train, label_train, data_val, label_val = get_data()
             clf, opt = get_clf()
@@ -222,7 +232,6 @@ def train_network(exp_info):
             Deep_Func.save_model(clf, model_file)
     elif clf_method == "Riemann":
         data_train, label_train, data_val, label_val = get_data()
-        print(data_train.shape)
         clf, opt = get_clf()
         clf = transform_fit(clf, opt, data_train, label_train)
 
@@ -238,8 +247,11 @@ def train_network(exp_info):
 
 
 def eval_network(label_val, pred_val):
+    # # # Evaluates the performance of the network and prints important values such as
+    # # # accuracy, precision, recall, F1 score, and so on
+    # Returns accuracy
+    
     plt.hist(label_val.flatten(), bins=1000)
-    # plt.show()
 
     unique, counts = np.unique(label_val, return_counts=True)
     print("Labels: ", unique, counts)
@@ -278,15 +290,16 @@ def eval_network(label_val, pred_val):
     return accuracy_val
 
 
-
-
-
 def bci_buffer(iter_num, buffer_size):
+    # # # Retrieves current data from prerecorded data
+    
     current_data = data_test[iter_num:iter_num + buffer_size]
     return current_data
 
 
 def iter_bci_buffer(current_data, iter_n):
+    # # # Retrieves current data from either real-time LSL stream or prerecorded data
+    
     real_time = True
     buffer_size = current_data.shape[0]
     if real_time:
@@ -299,6 +312,9 @@ def iter_bci_buffer(current_data, iter_n):
 
 
 def bci_buffer_rt(current_data, buffer_size, iter_n):
+    # # # Retrieves current data from LSL stream; accepts new values and addes them to
+    # # # previous data array
+    
     is_new_data = True
     iter_i = (iter_n - 1)*buffer_size
     while is_new_data:
@@ -312,13 +328,13 @@ def bci_buffer_rt(current_data, buffer_size, iter_n):
                 i -= 1
             if iter_i > buffer_size:
                 is_new_data = False
-    # print(current_data[:,1])
 
     return current_data
 
 
 def read_bci_data(iter_n):
-    # data = data_test[iter_n]
+    # # # Reads EEG data from LSL stream receiver
+    
     data = data_receiver.receive()
     while data.shape[0] < 1:
         data = data_receiver.receive()
@@ -328,11 +344,16 @@ def read_bci_data(iter_n):
 
 
 def setup_receiver():
+    # # # Sets up LSL stream receiver
+    
     global data_receiver
     data_receiver = LSLa.lslReceiver(True, True)
 
 
 def get_bci_class(bci_iter, clf, num_channels=32):
+    # # # Determines class of data by running trained classifier on most recent data
+    # Returns: class, certainty, the data that was used to determine the class
+    
     filter_rt = True
 
     buffer_size = int(freq*window_size)
@@ -340,11 +361,9 @@ def get_bci_class(bci_iter, clf, num_channels=32):
     if bci_iter < 2:
         global buffer_data
         buffer_data = np.zeros((buffer_size, num_channels))
-    # print('bci_iter: ', bci_iter)
     buffer_data = iter_bci_buffer(buffer_data, bci_iter)
-    # save data!!!!
+    
     if filter_rt:
-        # print('filter_rt!')
         buffer_data = eeg_io_pp.butter_bandpass_filter(buffer_data, 7, 30, freq)
 
     x1 = buffer_data.reshape(1, buffer_data.shape[0], buffer_data.shape[1])
@@ -355,8 +374,6 @@ def get_bci_class(bci_iter, clf, num_channels=32):
     except ValueError:
         a, cert = 0, 0
         print('Value Error')
-
-    # print(bci_iter, a)
 
     return a, cert, buffer_data
 
