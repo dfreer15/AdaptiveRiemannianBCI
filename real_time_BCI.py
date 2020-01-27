@@ -46,7 +46,6 @@ def transform_fit(clf, opt, train_data, train_labels):
     if clf_method == "Riemann":
         # train_data = train_data + 1e-12
         cov_train = pyriemann.estimation.Covariances().fit_transform(np.transpose(train_data, axes=[0, 2, 1]))
-        print(np.linalg.eigvals(cov_train[15]))
         clf.fit_transform(cov_train, train_labels)
         return clf
     elif clf_method == "Braindecode":
